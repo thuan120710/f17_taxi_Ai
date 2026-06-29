@@ -80,6 +80,7 @@ spawnVehicle = function(playerCoords, driverHash, vehHash)
     SetVehicleOnGroundProperly(task.vehicle)
     SetVehicleEngineOn(task.vehicle, true, true, false)
     SetVehicleUndriveable(task.vehicle, true)
+    SetVehicleDoorsLocked(task.vehicle, 1)
     SetVehicleIndividualDoorsLocked(task.vehicle, 0, 2)
     SetVehicleDoorCanBreak(task.vehicle, 0, false)
     SetVehicleFuelLevel(task.vehicle, 100.0)
@@ -332,10 +333,18 @@ end
 CreateThread(function()
     while true do
         local sleep = 500
+        local playerPed = PlayerPedId()
 
         if taxi.onRoad and task.vehicle then
+            sleep = 100
+            SetVehicleDoorsLocked(task.vehicle, 1)
             SetVehicleIndividualDoorsLocked(task.vehicle, 0, 2)
             SetVehicleDoorCanBreak(task.vehicle, 0, false)
+
+            if GetVehiclePedIsTryingToEnter(playerPed) == task.vehicle and GetSeatPedIsTryingToEnter(playerPed) == -1 then
+                ClearPedTasks(playerPed)
+                TaskEnterVehicle(playerPed, task.vehicle, 10000, 0, 1.0, 1, 0)
+            end
         end
 
         Wait(sleep)
