@@ -87,6 +87,10 @@ spawnVehicle = function(playerCoords, driverHash, vehHash)
     DecorSetFloat(task.vehicle, '_FUEL_LEVEL', 100.0)
     SetEntityAsMissionEntity(task.vehicle, true, true)
 
+    -- Initialize safe coordinates
+    taxi.lastSafeCoords = vector3(coords.x, coords.y, coords.z)
+    taxi.lastSafeHeading = heading
+
     task.npc = CreatePedInsideVehicle(task.vehicle, 26, driverHash, -1, true, true)
     SetAmbientVoiceName(task.npc, taxi.driverVoice)
     SetBlockingOfNonTemporaryEvents(task.npc, true)
@@ -102,6 +106,7 @@ spawnVehicle = function(playerCoords, driverHash, vehHash)
 end
 startDriveToPlayer = function(playerCoords)
     local toCoords = getStoppingLocation(playerCoords)
+    task.toCoords = toCoords
     local speed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
     local currentSpeed = speed
 
@@ -377,6 +382,10 @@ if GetResourceState("msk_enginetoggle") == "missing" or GetResourceState("msk_en
 end
 
 CreateThread(function()
+    local flipTimer = 0
+    local stuckTimer = 0
+    local lastRecordTime = 0
+
     while true do
         local sleep = 500
         local playerPed = PlayerPedId()
@@ -434,7 +443,83 @@ CreateThread(function()
                 end
                 leaveTarget()
             end
-        end
+
+            -- --- RESPAWN RECOVERY LOGIC ---
+            if DoesEntityExist(task.vehicle) and DoesEntityExist(task.npc) then
+                local coords = GetEntityCoords(task.vehicle)
+                local heading = GetEntityHeading(task.vehicle)
+                local speed = GetEntitySpeed(task.vehicle)
+                local gameTimer = GetGameTimer()
+
+                -- 1. Record Safe Points every 2 seconds
+                if gameTimer - lastRecordTime > 2000 then
+                    lastRecordTime = gameTimer
+                    if IsVehicleOnAllWheels(task.vehicle) and speed > 3.0 and IsPointOnRoad(coords.x, coords.y, coords.z, task.vehicle) then
+                        taxi.lastSafeCoords = coords
+                        taxi.lastSafeHeading = heading
+                    end
+                end
+
+                -- 2. Check Rescue Conditions
+                local triggerRescue = false
+
+                -- A. Water check (immediate)
+                if IsEntityInWater(task.vehicle) then
+                    triggerRescue = true
+                end
+
+                -- B. Flip check (3 seconds)
+                local roll = math.abs(GetEntityRoll(task.vehicle))
+                local pitch = math.abs(GetEntityPitch(task.vehicle))
+                if not IsVehicleOnAllWheels(task.vehicle) or roll > 70.0 or pitch > 70.0 then
+                    flipTimer = flipTimer + 1
+                    if flipTimer > 30 then -- 30 * 100ms = 3.0s
+                        triggerRescue = true
+                    end
+                else
+                    flipTimer = 0
+                end
+
+                -- C. Off-road stuck check (4 seconds)
+                if speed < 1.0 and not IsPointOnRoad(coords.x, coords.y, coords.z, task.vehicle) then
+                    stuckTimer = stuckTimer + 1
+                    if stuckTimer > 40 then -- 40 * 100ms = 4.0s
+                        triggerRescue = true
+                    end
+                else
+                    stuckTimer = 0
+                end
+
+                -- Execute Rescue
+                if triggerRescue and taxi.lastSafeCoords then
+                    flipTimer = 0
+                    stuckTimer = 0
+                    
+                    DoScreenFadeOut(500)
+                    Wait(500)
+
+                    ClearPedTasks(task.npc)
+                    SetEntityCoords(task.vehicle, taxi.lastSafeCoords.x, taxi.lastSafeCoords.y, taxi.lastSafeCoords.z, false, false, false, true)
+                    SetEntityHeading(task.vehicle, taxi.lastSafeHeading or 0.0)
+                    SetVehicleOnGroundProperly(task.vehicle)
+                    SetVehicleFixed(task.vehicle)
+                    SetVehicleEngineOn(task.vehicle, true, true, false)
+                    SetEntityVelocity(task.vehicle, 0.0, 0.0, 0.0)
+                    SetVehicleEngineHealth(task.vehicle, 1000.0)
+
+                    -- Resume driving task to destination
+                    local toCoords = task.toCoords or GetEntityCoords(PlayerPedId())
+                    local baseSpeed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+                    local currentSpeed = baseSpeed * (taxi.speedMultiplier or 1.0)
+                    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, taxi.drivingStyle or Config.DrivingStyle, 5.0)
+                    SetPedKeepTask(task.npc, true)
+
+                    Wait(500)
+                    DoScreenFadeIn(500)
+
+                    Config.Notification(nil, "Tài xế đã đưa xe quay trở lại tuyến đường an toàn.", "success")
+                end
+            end
 
         Wait(sleep)
     end
