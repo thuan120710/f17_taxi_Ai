@@ -20,3 +20,9 @@ client_scripts {
 server_scripts {
 	'server.lua'
 }
+
+ui_page 'ui/dist/index.html'
+
+files {
+	'ui/dist/**/*'
+}

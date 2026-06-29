@@ -163,9 +163,22 @@ startDriveToCoords = function(waypoint)
     task.startTime = GetGameTimer()
     PlayPedAmbientSpeechNative(task.npc, "TAXID_BEGIN_JOURNEY", "SPEECH_PARAMS_FORCE_NORMAL")
 
-    local speed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-    local currentSpeed = speed
-    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+    task.toCoords = toCoords
+    taxi.speedMultiplier = 1.0
+    taxi.speedStatus = "normal"
+    taxi.drivingStyle = Config.DrivingStyle
+
+    SendNUIMessage({
+        action = "show",
+        driver = taxi.driverName,
+        price = taxi.upfrontPrice,
+        speed = taxi.speedStatus,
+        status = "Đang đi đến đích"
+    })
+
+    local speed = (Config.SpeedZones[getVehNodeType(task.toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+    local currentSpeed = speed * taxi.speedMultiplier
+    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
     SetPedKeepTask(task.npc, true)
     taxi.inDriveMode = true
     CreateThread(drawPrice)
@@ -173,28 +186,29 @@ startDriveToCoords = function(waypoint)
     while taxi.onRoad and taxi.inDriveMode and not taxi.canceled and not taxi.finished do
         Wait(500)
         local vehicleCoords = GetEntityCoords(task.vehicle)
-        local distance = #(toCoords - vehicleCoords)
+        local distance = #(task.toCoords - vehicleCoords)
 
         if distance < 10.0 then
             PlayPedAmbientSpeechNative(task.npc, "TAXID_CLOSE_AS_POSS", "SPEECH_PARAMS_FORCE_NORMAL")
             AdvancedNotification(Translation[Config.Locale]['end'], 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
             Config.Notification(nil, Translation[Config.Locale]['end'], 'success')
+            SendNUIMessage({ action = "hide" })
             taxi.finished = true
             break
         end
 
         if distance <= 20.0 then
-            local newSpeed = ((Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType) / 2
+            local newSpeed = (((Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType) / 2) * taxi.speedMultiplier
             if currentSpeed ~= newSpeed then
                 currentSpeed = newSpeed
-                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
                 SetPedKeepTask(task.npc, true)
             end
         else
-            local newSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+            local newSpeed = ((Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType) * taxi.speedMultiplier
             if currentSpeed ~= newSpeed then
                 currentSpeed = newSpeed
-                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
                 SetPedKeepTask(task.npc, true)
             end
         end
@@ -246,6 +260,8 @@ leaveTarget = function()
     local blip, vehicle, npc = task.blip, task.vehicle, task.npc
     taxi = {}
     task = {}
+
+    SendNUIMessage({ action = "hide" })
 
     if blip then RemoveBlip(blip) end
 
@@ -379,6 +395,38 @@ CreateThread(function()
             -- Automatically detect if the player exited the taxi
             if IsPedInVehicle(playerPed, task.vehicle, false) then
                 taxi.playerWasInside = true
+
+                -- Check hotkeys for speed control when inside the vehicle and taxi is in drive mode
+                if taxi.inDriveMode then
+                    sleep = 0 -- Run every frame to capture controls perfectly when in taxi
+
+                    -- Page Up (Control 10)
+                    if IsControlJustPressed(0, 10) then
+                        if taxi.speedStatus == "fast" then
+                            taxi.speedMultiplier = 1.0
+                            taxi.speedStatus = "normal"
+                            taxi.drivingStyle = Config.DrivingStyle
+                            Config.Notification(nil, "Đã bảo tài xế chạy tốc độ bình thường.", "primary")
+                        else
+                            taxi.speedMultiplier = 1.4
+                            taxi.speedStatus = "fast"
+                            taxi.drivingStyle = 2883621 -- Reckless emergency driving (runs red lights)
+                            Config.Notification(nil, "Đã bảo tài xế chạy nhanh lên!", "success")
+                        end
+
+                        SendNUIMessage({
+                            action = "updateSpeed",
+                            speed = taxi.speedStatus
+                        })
+
+                        -- Update speed task immediately
+                        local vehicleCoords = GetEntityCoords(task.vehicle)
+                        local baseSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+                        local currentSpeed = baseSpeed * taxi.speedMultiplier
+                        TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
+                        SetPedKeepTask(task.npc, true)
+                    end
+                end
             elseif taxi.playerWasInside then
                 -- Player was inside but is now outside
                 if not taxi.canceled and not taxi.finished then
