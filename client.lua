@@ -263,6 +263,12 @@ end
 
 leaveTarget = function()
     local blip, vehicle, npc = task.blip, task.vehicle, task.npc
+
+    if npc and vehicle and DoesEntityExist(npc) and DoesEntityExist(vehicle) then
+        SetVehicleDoorsLocked(vehicle, 4) -- Lock doors so player cannot enter
+        TaskVehicleDriveWander(npc, vehicle, 20.0, Config.DrivingStyle or 786603)
+    end
+
     taxi = {}
     task = {}
 
@@ -272,11 +278,11 @@ leaveTarget = function()
 
     CreateThread(function()
         Wait(5000)
-        if npc then 
+        if npc and DoesEntityExist(npc) then 
             SetEntityAsMissionEntity(npc, false, false)
             DeleteEntity(npc) 
         end
-        if vehicle then 
+        if vehicle and DoesEntityExist(vehicle) then 
             SetEntityAsMissionEntity(vehicle, false, false)
             DeleteEntity(vehicle) 
         end
@@ -382,8 +388,8 @@ if GetResourceState("msk_enginetoggle") == "missing" or GetResourceState("msk_en
 end
 
 CreateThread(function()
-    local flipTimer = 0
-    local stuckTimer = 0
+    local flipStartTime = 0
+    local stuckStartTime = 0
     local lastRecordTime = 0
 
     while true do
@@ -472,28 +478,30 @@ CreateThread(function()
                 local roll = math.abs(GetEntityRoll(task.vehicle))
                 local pitch = math.abs(GetEntityPitch(task.vehicle))
                 if not IsVehicleOnAllWheels(task.vehicle) or roll > 70.0 or pitch > 70.0 then
-                    flipTimer = flipTimer + 1
-                    if flipTimer > 30 then -- 30 * 100ms = 3.0s
+                    if flipStartTime == 0 then
+                        flipStartTime = gameTimer
+                    elseif gameTimer - flipStartTime > 3000 then -- 3.0s
                         triggerRescue = true
                     end
                 else
-                    flipTimer = 0
+                    flipStartTime = 0
                 end
 
                 -- C. Off-road stuck check (4 seconds)
                 if speed < 1.0 and not IsPointOnRoad(coords.x, coords.y, coords.z, task.vehicle) then
-                    stuckTimer = stuckTimer + 1
-                    if stuckTimer > 40 then -- 40 * 100ms = 4.0s
+                    if stuckStartTime == 0 then
+                        stuckStartTime = gameTimer
+                    elseif gameTimer - stuckStartTime > 4000 then -- 4.0s
                         triggerRescue = true
                     end
                 else
-                    stuckTimer = 0
+                    stuckStartTime = 0
                 end
 
                 -- Execute Rescue
                 if triggerRescue and taxi.lastSafeCoords then
-                    flipTimer = 0
-                    stuckTimer = 0
+                    flipStartTime = 0
+                    stuckStartTime = 0
                     
                     DoScreenFadeOut(500)
                     Wait(500)
