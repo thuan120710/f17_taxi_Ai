@@ -1,5 +1,10 @@
 if Config.Framework == 'ESX' then
-    ESX = exports["es_extended"]:getSharedObject()
+    pcall(function()
+        ESX = exports["es_extended"]:getSharedObject()
+    end)
+    if not ESX then
+        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+    end
 elseif Config.Framework == 'QBCore' then
     QBCore = exports['qb-core']:GetCoreObject()
 elseif Config.Framework == 'Standalone' then
@@ -27,20 +32,40 @@ end
 
 RegisterNetEvent('msk_aitaxi:payTaxiPrice', function(payAmount)
     local src = source
+    if not payAmount or type(payAmount) ~= 'number' or payAmount <= 0 then
+        return
+    end
     payAmount = round(payAmount)
 
     if Config.Framework == 'ESX' then
         local xPlayer = ESX.GetPlayerFromId(src)
-        local account = 'money'
+        local tienkhoaObj = xPlayer.getAccount('tienkhoa')
+        local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
 
-        if xPlayer.getAccount('money').money < payAmount then account = 'bank' end
-        xPlayer.removeAccountMoney(account, payAmount)
+        if tienkhoaMoney >= payAmount then
+            xPlayer.removeAccountMoney('tienkhoa', payAmount)
+        else
+            if tienkhoaMoney > 0 then
+                xPlayer.removeAccountMoney('tienkhoa', tienkhoaMoney)
+                xPlayer.removeAccountMoney('bank', payAmount - tienkhoaMoney)
+            else
+                xPlayer.removeAccountMoney('bank', payAmount)
+            end
+        end
     elseif Config.Framework == 'QBCore' then
         local Player = QBCore.Functions.GetPlayer(src)
-        local account = 'cash'
+        local tienkhoaMoney = Player.Functions.GetMoney('tienkhoa') or 0
 
-        if Player.Functions.GetMoney('cash') < payAmount then account = 'bank' end
-        Player.Functions.RemoveMoney(account, payAmount)
+        if tienkhoaMoney >= payAmount then
+            Player.Functions.RemoveMoney('tienkhoa', payAmount)
+        else
+            if tienkhoaMoney > 0 then
+                Player.Functions.RemoveMoney('tienkhoa', tienkhoaMoney)
+                Player.Functions.RemoveMoney('bank', payAmount - tienkhoaMoney)
+            else
+                Player.Functions.RemoveMoney('bank', payAmount)
+            end
+        end
     elseif Config.Framework == 'Standalone' then
         -- Add your own code here
     end

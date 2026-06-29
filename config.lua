@@ -64,7 +64,7 @@ Config.Taxi = {
     },
     pedmodels = {
         -- You can set different models
-        {name = 'Michael Reynold', model = 'a_m_y_stlat_01', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
-        {name = 'John Smith', model = 'a_m_y_smartcaspat_01', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
+        {name = 'Michael Reynold', model = 'ig_claypain', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
+        {name = 'John Smith', model = 'ig_claypain', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
     },
 }

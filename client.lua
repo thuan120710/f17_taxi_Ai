@@ -2,7 +2,12 @@ local canCallTaxi = true
 local task, taxi = {}, {}
 
 if Config.Framework == 'ESX' then
-    ESX = exports["es_extended"]:getSharedObject()
+    pcall(function()
+        ESX = exports["es_extended"]:getSharedObject()
+    end)
+    if not ESX then
+        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+    end
 elseif Config.Framework == 'QBCore' then
     QBCore = exports['qb-core']:GetCoreObject()
 elseif Config.Framework == 'Standalone' then
@@ -42,7 +47,6 @@ getVehNodeType = function(coords)
     local _, _, flags = GetVehicleNodeProperties(coords.x, coords.y, coords.z)
     return flags
 end
-
 callTaxi = function()
     if not canCallTaxi then return end
     local npcId, vehId = math.random(#Config.Taxi.pedmodels), math.random(#Config.Taxi.vehicles)
@@ -95,7 +99,6 @@ spawnVehicle = function(playerCoords, driverHash, vehHash)
 
     return true
 end
-
 startDriveToPlayer = function(playerCoords)
     local toCoords = getStoppingLocation(playerCoords)
     local speed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType

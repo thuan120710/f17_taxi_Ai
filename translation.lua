@@ -1,13 +1,13 @@
 Translation = {
     ['de'] = {
-        ['input'] = 'Drücke ~r~X~s~ um die Fahrt zu stoppen',
-        ['price'] = 'Aktueller Preis: $%s',
-        ['paid'] = 'Du hast $%s bezahlt',
-        ['not_available'] = 'Es ist gerade kein Fahrer verfügbar, bitte versuche es erneut!',
-        ['on_the_way'] = 'Ein Fahrer ist unterwegs zu dir.',
-        ['welcome'] = 'Hallo, mein Name ist %s. Wo möchtest du hin?',
-        ['end'] = 'Wir haben dein Ziel erreicht.',
-        ['abort'] = 'Fahrt abgebrochen',
+        ['input'] = 'Nhấn ~r~X~s~ để hủy chuyến đi',
+        ['price'] = 'Giá hiện tại: $%s',
+        ['paid'] = 'Bạn đã trả $%s',
+        ['not_available'] = 'Hiện tại không có tài xế nào khả dụng, vui lòng gọi lại sau!',
+        ['on_the_way'] = 'Tài xế đang trên đường đến đón bạn.',
+        ['welcome'] = 'Xin chào, tôi là %s. Bạn muốn đi đâu?',
+        ['end'] = 'Chúng ta đã đến điểm hẹn yêu cầu.',
+        ['abort'] = 'Đã hủy chuyến taxi',
     },
     ['en'] = {
         ['input'] = 'Press ~r~X~s~ to abort the taxi drive',
