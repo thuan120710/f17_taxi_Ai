@@ -39,7 +39,7 @@ Config.AbortTaxiDrive = {
 }
 
 Config.SpawnRadius = 200.0 -- default: 200.0 meters // Do not set more than 200.0!
-Config.DrivingStyle = 787115 -- default: 787115 // Lane following, smart bypass, and reversing
+Config.DrivingStyle = 786603 -- default: 786603 // Standard road traffic style, works on all roads including mountains
 Config.SpeedType = 3.6 -- kmh = 3.6 // mph = 2.236936
 Config.SpeedZones = {
     -- Speed of the Taxi in specific zones

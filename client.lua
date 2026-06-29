@@ -419,7 +419,7 @@ CreateThread(function()
                         else
                             taxi.speedMultiplier = 1.4
                             taxi.speedStatus = "fast"
-                            taxi.drivingStyle = 2883621 -- Reckless emergency driving (runs red lights)
+                            taxi.drivingStyle = 786475 -- Fast driving style (runs red lights, follows GPS road, works on all roads including mountains)
                             Config.Notification(nil, "Đã bảo tài xế chạy nhanh lên!", "success")
                         end
 
@@ -520,6 +520,7 @@ CreateThread(function()
                     Config.Notification(nil, "Tài xế đã đưa xe quay trở lại tuyến đường an toàn.", "success")
                 end
             end
+        end
 
         Wait(sleep)
     end
