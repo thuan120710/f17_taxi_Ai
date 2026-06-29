@@ -1,19 +1,23 @@
 Config = {}
 ----------------------------------------------------------------
 Config.Locale = 'de'
-Config.VersionChecker = true
+Config.VersionChecker = false
 ----------------------------------------------------------------
 -- !!! This function is clientside AND serverside !!!
 Config.Notification = function(source, message, typ)
     if IsDuplicityVersion() then -- serverside
-        exports.msk_core:Notification(source, 'AI Taxi', message, typ)
+        TriggerClientEvent('no:Notify', source, message, typ or 'primary', 5000)
     else -- clientside
-        exports.msk_core:Notification('AI Taxi', message, typ)
+        if no and no.Notify then
+            no:Notify(message, typ or 'primary', 5000)
+        else
+            TriggerEvent('no:Notify', message, typ or 'primary', 5000)
+        end
     end
 end
 ----------------------------------------------------------------
 -- If set to 'Standalone' then you have to add your own functions in server.lua
-Config.Framework = 'ESX' -- Set to 'ESX', 'QBCore' or 'Standalone'
+Config.Framework = 'QBCore' -- Set to 'ESX', 'QBCore' or 'Standalone'
 ----------------------------------------------------------------
 -- For ESX you'll need esx_addonaccount for that!
 -- For QBCore you'll need qb-banking for that!
@@ -35,7 +39,7 @@ Config.AbortTaxiDrive = {
 }
 
 Config.SpawnRadius = 200.0 -- default: 200.0 meters // Do not set more than 200.0!
-Config.DrivingStyle = 786731 -- default: 786731 // https://vespura.com/fivem/drivingstyle/
+Config.DrivingStyle = 786603 -- default: 786603 // Allows reversing and bypassing traffic
 Config.SpeedType = 3.6 -- kmh = 3.6 // mph = 2.236936
 Config.SpeedZones = {
     -- Speed of the Taxi in specific zones

@@ -103,8 +103,9 @@ end
 startDriveToPlayer = function(playerCoords)
     local toCoords = getStoppingLocation(playerCoords)
     local speed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+    local currentSpeed = speed
 
-    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, speed, Config.DrivingStyle, 5.0)
+    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
     SetPedKeepTask(task.npc, true)
     AdvancedNotification(Translation[Config.Locale]['on_the_way'], 'Downtown Cab Co.', 'Taxi', 'CHAR_TAXI')
     taxi.onRoad = true
@@ -114,17 +115,21 @@ startDriveToPlayer = function(playerCoords)
         local vehicleCoords = GetEntityCoords(task.vehicle)
         local distance = #(toCoords - vehicleCoords)
 
-        if distance > 20.0 then
-            local speed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, speed, Config.DrivingStyle, 5.0)
-            SetPedKeepTask(task.npc, true)
-        end
-        
         if distance <= 20.0 then
-            local speed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, speed / 2, Config.DrivingStyle, 5.0)
-            SetPedKeepTask(task.npc, true)
+            local newSpeed = ((Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType) / 2
+            if currentSpeed ~= newSpeed then
+                currentSpeed = newSpeed
+                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+                SetPedKeepTask(task.npc, true)
+            end
             break
+        end
+
+        local newSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+        if currentSpeed ~= newSpeed then
+            currentSpeed = newSpeed
+            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+            SetPedKeepTask(task.npc, true)
         end
     end
 end
@@ -142,12 +147,25 @@ checkWaypoint = function()
 end
 
 startDriveToCoords = function(waypoint)
+    local toCoords = getStoppingLocation(waypoint)
+    local startCoords = GetEntityCoords(task.vehicle)
+    local distance = #(startCoords - toCoords)
+
+    -- Estimate price based on distance
+    local averageSpeed = 20.0 -- estimated average speed in m/s (72 km/h)
+    local estimatedTimeMs = (distance / averageSpeed) * 1000
+    local ticks = estimatedTimeMs / Config.Price.tickTime
+    taxi.upfrontPrice = math.ceil(Config.Price.base + (ticks * Config.Price.tick))
+    taxi.paidUpfront = true
+
+    TriggerServerEvent('msk_aitaxi:payTaxiPrice', taxi.upfrontPrice)
+
     task.startTime = GetGameTimer()
     PlayPedAmbientSpeechNative(task.npc, "TAXID_BEGIN_JOURNEY", "SPEECH_PARAMS_FORCE_NORMAL")
 
-    local toCoords = getStoppingLocation(waypoint)
     local speed = (Config.SpeedZones[getVehNodeType(toCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, speed, Config.DrivingStyle, 5.0)
+    local currentSpeed = speed
+    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
     SetPedKeepTask(task.npc, true)
     taxi.inDriveMode = true
     CreateThread(drawPrice)
@@ -157,24 +175,28 @@ startDriveToCoords = function(waypoint)
         local vehicleCoords = GetEntityCoords(task.vehicle)
         local distance = #(toCoords - vehicleCoords)
 
-        if distance > 20.0 then
-            local speed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, speed, Config.DrivingStyle, 5.0)
-            SetPedKeepTask(task.npc, true)
-        end
-
-        if distance <= 20.0 then
-            local speed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, speed / 2, Config.DrivingStyle, 5.0)
-            SetPedKeepTask(task.npc, true)
-        end
-
         if distance < 10.0 then
             PlayPedAmbientSpeechNative(task.npc, "TAXID_CLOSE_AS_POSS", "SPEECH_PARAMS_FORCE_NORMAL")
             AdvancedNotification(Translation[Config.Locale]['end'], 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
-            TriggerServerEvent('msk_aitaxi:payTaxiPrice', math.ceil(Config.Price.base + (Config.Price.tick * ((GetGameTimer() - task.startTime) / Config.Price.tickTime))))
+            Config.Notification(nil, Translation[Config.Locale]['end'], 'success')
             taxi.finished = true
             break
+        end
+
+        if distance <= 20.0 then
+            local newSpeed = ((Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType) / 2
+            if currentSpeed ~= newSpeed then
+                currentSpeed = newSpeed
+                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+                SetPedKeepTask(task.npc, true)
+            end
+        else
+            local newSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+            if currentSpeed ~= newSpeed then
+                currentSpeed = newSpeed
+                TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, toCoords.x, toCoords.y, toCoords.z, currentSpeed, Config.DrivingStyle, 5.0)
+                SetPedKeepTask(task.npc, true)
+            end
         end
     end
 
@@ -190,22 +212,33 @@ abortTaxiDrive = function(keyPressed)
 
     if not taxi.inDriveMode then
         AdvancedNotification(Translation[Config.Locale]['abort'], 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
+        Config.Notification(nil, Translation[Config.Locale]['abort'], 'error')
         leaveTarget()
         return
     end
 
+    -- Refund logic
+    if taxi.paidUpfront and taxi.upfrontPrice then
+        local actualPrice = math.ceil(Config.Price.base + (Config.Price.tick * ((GetGameTimer() - task.startTime) / Config.Price.tickTime)))
+        if actualPrice < taxi.upfrontPrice then
+            local refundAmount = taxi.upfrontPrice - actualPrice
+            TriggerServerEvent('msk_aitaxi:refundTaxiPrice', refundAmount)
+        end
+    end
+
     if not taxi.finished and not keyPressed then
         AdvancedNotification(Translation[Config.Locale]['abort'], 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
+        Config.Notification(nil, Translation[Config.Locale]['abort'], 'error')
         leaveTarget()
         return
     end
 
     if not taxi.finished and keyPressed then
         AdvancedNotification(Translation[Config.Locale]['abort'], 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
+        Config.Notification(nil, Translation[Config.Locale]['abort'], 'error')
         TaskVehicleTempAction(task.npc, task.vehicle, 27, 1000)
     end
 
-    TriggerServerEvent('msk_aitaxi:payTaxiPrice', math.ceil(Config.Price.base + (Config.Price.tick * ((GetGameTimer() - task.startTime) / Config.Price.tickTime))))
     taxi.finished = true
 end
 
@@ -215,22 +248,18 @@ leaveTarget = function()
     task = {}
 
     if blip then RemoveBlip(blip) end
-    if vehicle and npc then
-        TaskVehicleDriveWander(npc, vehicle, 17.0, Config.DrivingStyle)
-        SetVehicleDoorsShut(vehicle, true)
-        SetVehicleDoorsLocked(vehicle, 2)
 
-        for i = 0, 5 do
-            SetVehicleDoorCanBreak(vehicle, i, false)
+    CreateThread(function()
+        Wait(5000)
+        if npc then 
+            SetEntityAsMissionEntity(npc, false, false)
+            DeleteEntity(npc) 
         end
-
-        Wait(10000)
-
-        SetPedAsNoLongerNeeded(npc)
-        SetEntityAsNoLongerNeeded(vehicle)
-        DeleteEntity(npc)
-        DeleteEntity(vehicle)
-    end
+        if vehicle then 
+            SetEntityAsMissionEntity(vehicle, false, false)
+            DeleteEntity(vehicle) 
+        end
+    end)
 end
 
 enteringVehicle = function(vehicle, plate, seat)
@@ -265,6 +294,7 @@ enteredVehicle = function(vehicle, plate, seat)
     SetPedIntoVehicle(PlayerPedId(), task.vehicle, seat)
     PlayPedAmbientSpeechNative(task.npc, "TAXID_WHERE_TO", "SPEECH_PARAMS_FORCE_NORMAL")
     AdvancedNotification(Translation[Config.Locale]['welcome']:format(taxi.driverName), 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
+    Config.Notification(nil, Translation[Config.Locale]['welcome']:format(taxi.driverName), 'info')
 
     if taxi.entered then return end
     taxi.entered = true
@@ -345,6 +375,17 @@ CreateThread(function()
                 ClearPedTasks(playerPed)
                 TaskEnterVehicle(playerPed, task.vehicle, 10000, 0, 1.0, 1, 0)
             end
+
+            -- Automatically detect if the player exited the taxi
+            if IsPedInVehicle(playerPed, task.vehicle, false) then
+                taxi.playerWasInside = true
+            elseif taxi.playerWasInside then
+                -- Player was inside but is now outside
+                if not taxi.canceled and not taxi.finished then
+                    abortTaxiDrive()
+                end
+                leaveTarget()
+            end
         end
 
         Wait(sleep)
@@ -353,10 +394,10 @@ end)
 
 drawPrice = function()
     while taxi.onRoad and taxi.inDriveMode and not taxi.canceled and not taxi.finished do
-        local sleep = 1
+        local sleep = 0
 
         HelpNotification(Translation[Config.Locale]['input']:format(Config.AbortTaxiDrive.hotkey))
-        DrawGenericText(Translation[Config.Locale]['price']:format(comma(math.ceil(Config.Price.base + (Config.Price.tick * ((GetGameTimer() - task.startTime) / Config.Price.tickTime))))))
+        DrawGenericText(Translation[Config.Locale]['price']:format(comma(taxi.upfrontPrice or 0)))
 
         Wait(sleep)
     end

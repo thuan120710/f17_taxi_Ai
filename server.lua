@@ -1,10 +1,27 @@
-if Config.Framework == 'ESX' then
-    pcall(function()
-        ESX = exports["es_extended"]:getSharedObject()
-    end)
+ESX = nil
+
+local function GetESX()
+    if Config.Framework ~= 'ESX' then return nil end
     if not ESX then
-        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+        pcall(function()
+            ESX = exports["es_extended"]:getSharedObject()
+        end)
+        if not ESX then
+            TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+        end
+        local timeout = 0
+        while not ESX and timeout < 100 do
+            Wait(10)
+            timeout = timeout + 1
+        end
     end
+    return ESX
+end
+
+if Config.Framework == 'ESX' then
+    CreateThread(function()
+        GetESX()
+    end)
 elseif Config.Framework == 'QBCore' then
     QBCore = exports['qb-core']:GetCoreObject()
 elseif Config.Framework == 'Standalone' then
@@ -38,6 +55,8 @@ RegisterNetEvent('msk_aitaxi:payTaxiPrice', function(payAmount)
     payAmount = round(payAmount)
 
     if Config.Framework == 'ESX' then
+        local ESX = GetESX()
+        if not ESX then return end
         local xPlayer = ESX.GetPlayerFromId(src)
         local tienkhoaObj = xPlayer.getAccount('tienkhoa')
         local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
@@ -90,31 +109,28 @@ RegisterNetEvent('msk_aitaxi:payTaxiPrice', function(payAmount)
     end
 end)
 
-GithubUpdater = function()
-    local GetCurrentVersion = function()
-	    return GetResourceMetadata( GetCurrentResourceName(), "version" )
-    end
-    
-    local CurrentVersion = GetCurrentVersion()
-    local resourceName = "[^2"..GetCurrentResourceName().."^0]"
 
-    if Config.VersionChecker then
-        PerformHttpRequest('https://raw.githubusercontent.com/MSK-Scripts/msk_aitaxi/main/VERSION', function(Error, NewestVersion, Header)
-            if not NewestVersion then
-                print(resourceName .. '^2 ✓ Resource loaded^0 - ^5Current Version: ^2' .. CurrentVersion .. '^0')
-                print(resourceName .. '^1 ✗ Version Check failed. Please Update!^0 - ^6Download here:^9 https://github.com/MSK-Scripts/msk_aitaxi ^0')
-                return
-            end
-
-            if CurrentVersion == NewestVersion then
-                print(resourceName .. '^2 ✓ Resource is Up to Date^0 - ^5Current Version: ^2' .. CurrentVersion .. '^0')
-            elseif CurrentVersion ~= NewestVersion then
-                print(resourceName .. '^1 ✗ Resource Outdated. Please Update!^0 - ^5Current Version: ^1' .. CurrentVersion .. '^0')
-                print('^5Newest Version: ^2' .. NewestVersion .. '^0 - ^6Download here:^9 https://github.com/MSK-Scripts/msk_aitaxi/releases/tag/v'.. NewestVersion .. '^0')
-            end
-        end)
-    else
-        print(resourceName .. '^2 ✓ Resource loaded^0 - ^5Current Version: ^2' .. CurrentVersion .. '^0')
+RegisterNetEvent('msk_aitaxi:refundTaxiPrice', function(refundAmount)
+    local src = source
+    if not refundAmount or type(refundAmount) ~= 'number' or refundAmount <= 0 then
+        return
     end
-end
-GithubUpdater()
+    refundAmount = round(refundAmount)
+
+    if Config.Framework == 'ESX' then
+        local ESX = GetESX()
+        if not ESX then return end
+        local xPlayer = ESX.GetPlayerFromId(src)
+        local account = 'tienkhoa'
+        local tienkhoaObj = xPlayer.getAccount('tienkhoa')
+        if not tienkhoaObj then account = 'bank' end
+        xPlayer.addAccountMoney(account, refundAmount)
+    elseif Config.Framework == 'QBCore' then
+        local Player = QBCore.Functions.GetPlayer(src)
+        Player.Functions.AddMoney('tienkhoa', refundAmount)
+    elseif Config.Framework == 'Standalone' then
+        -- Add your own code here
+    end
+
+    Config.Notification(src, "Bạn đã được hoàn lại $" .. comma(refundAmount) .. " cho đoạn đường chưa đi.")
+end)
