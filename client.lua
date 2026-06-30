@@ -492,7 +492,7 @@ CreateThread(function()
                         else
                             taxi.speedMultiplier = 1.4
                             taxi.speedStatus = "fast"
-                            taxi.drivingStyle = 786475 -- Fast driving style (runs red lights, follows GPS road, works on all roads including mountains)
+                            taxi.drivingStyle = 786479 -- Fast driving style (runs red lights, follows GPS road, works on all roads including mountains)
                             Config.Notification(nil, "Đã bảo tài xế chạy nhanh lên!", "success")
                         end
 

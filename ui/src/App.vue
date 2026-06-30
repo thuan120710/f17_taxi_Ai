@@ -44,7 +44,7 @@ const fare = ref(0)
 const speedStatus = ref('normal') // 'normal' | 'fast'
 
 const speedText = computed(() => {
-  if (speedStatus.value === 'fast') return 'Phóng nhanh'
+  if (speedStatus.value === 'fast') return 'Quái Xế'
   return 'Bình thường'
 })
 
