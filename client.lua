@@ -1,5 +1,6 @@
 local canCallTaxi = true
 local task, taxi = {}, {}
+local executeAbort
 
 if Config.Framework == 'ESX' then
     pcall(function()
@@ -182,13 +183,30 @@ abortTaxiDrive = function(keyPressed, isPaymentFailure)
     if not taxi.onRoad then return end
     if taxi.canceled then return end
     if taxi.finished then return end
-    taxi.canceled = true
 
     if isPaymentFailure then
+        taxi.canceled = true
         AdvancedNotification(Translation[Config.Locale]['insufficient_funds'], 'Downtown Cab Co.', taxi.driverName or 'Taxi', 'CHAR_TAXI')
         leaveTarget()
         return
     end
+
+    if keyPressed then
+        SendNUIMessage({
+            action = "showPopup",
+            type = "abort"
+        })
+        SetNuiFocus(true, true)
+    else
+        executeAbort()
+    end
+end
+
+executeAbort = function()
+    if not taxi.onRoad then return end
+    if taxi.canceled then return end
+    if taxi.finished then return end
+    taxi.canceled = true
 
     if taxi.paidUpfront and taxi.upfrontPrice then
         local actualPrice = math.ceil(Config.Price.base + (Config.Price.tick * ((GetGameTimer() - task.startTime) / Config.Price.tickTime)))
@@ -200,11 +218,7 @@ abortTaxiDrive = function(keyPressed, isPaymentFailure)
 
     if not taxi.finished then
         AdvancedNotification(Translation[Config.Locale]['abort'], 'Downtown Cab Co.', taxi.driverName or 'Taxi', 'CHAR_TAXI')
-        if keyPressed then
-            TaskVehicleTempAction(task.npc, task.vehicle, 27, 1000)
-        else
-            leaveTarget()
-        end
+        TaskVehicleTempAction(task.npc, task.vehicle, 27, 1000)
     end
 
     taxi.finished = true
@@ -545,6 +559,16 @@ RegisterNUICallback('crazyDriverResponse', function(data, cb)
         end
     end
     
+    cb('ok')
+end)
+
+RegisterNUICallback('abortConfirmResponse', function(data, cb)
+    SetNuiFocus(false, false)
+    if data.agree then
+        executeAbort()
+    else
+        AdvancedNotification("Đã hủy yêu cầu hủy chuyến, tiếp tục hành trình.", 'Downtown Cab Co.', taxi.driverName or 'Taxi', 'CHAR_TAXI')
+    end
     cb('ok')
 end)
 

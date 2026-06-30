@@ -42,7 +42,7 @@
         <div class="popup-card">
           <div class="popup-header">
             <span class="popup-brand">F17 TAXI</span>
-            <span class="popup-title">{{ popupType === 'upgrade' ? 'DỊCH VỤ NHANH CHÓNG' : 'XÁC NHẬN HỦY CHẾ ĐỘ' }}</span>
+            <span class="popup-title">{{ popupType === 'upgrade' ? 'DỊCH VỤ NHANH CHÓNG' : (popupType === 'abort' ? 'XÁC NHẬN HỦY CHUYẾN' : 'XÁC NHẬN HỦY CHẾ ĐỘ') }}</span>
           </div>
           <div class="popup-content">
             <template v-if="popupType === 'upgrade'">
@@ -51,16 +51,22 @@
                 Phụ phí: <span class="highlight-green">${{ additionalPrice }}</span> (khoảng 50% tiền đường đi)
               </div>
             </template>
-            <template v-else>
+            <template v-else-if="popupType === 'downgrade'">
               Bạn có chắc chắn muốn trở về chế độ <span class="highlight-normal">Bình thường</span> không?
               <div class="price-info highlight-red-warning">
                 Lưu ý: Bạn sẽ không được hoàn lại số tiền phụ phí quái xế đã thanh toán.
               </div>
             </template>
+            <template v-else-if="popupType === 'abort'">
+              Bạn có chắc chắn muốn <span class="highlight-red">HỦY CHUYẾN ĐI</span> hiện tại không?
+              <div class="price-info highlight-red-warning">
+                Lưu ý: Hành trình sẽ dừng ngay lập tức và bạn được hoàn trả tiền cho phần đường chưa đi (nếu có).
+              </div>
+            </template>
           </div>
           <div class="popup-actions">
             <button class="btn btn-agree" @click="handleResponse(true)">
-              {{ popupType === 'upgrade' ? 'Đồng ý' : 'Xác nhận' }}
+              {{ popupType === 'upgrade' ? 'Đồng ý' : (popupType === 'abort' ? 'Hủy chuyến' : 'Xác nhận') }}
             </button>
             <button class="btn btn-decline" @click="handleResponse(false)">
               {{ popupType === 'upgrade' ? 'Từ chối' : 'Hủy bỏ' }}
@@ -98,13 +104,23 @@ const speedClass = computed(() => {
 const handleResponse = (agree) => {
   showPopup.value = false
   const resourceName = window.GetParentResourceName ? window.GetParentResourceName() : 'msk_aitaxi'
-  fetch(`https://${resourceName}/crazyDriverResponse`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json; charset=UTF-8'
-    },
-    body: JSON.stringify({ agree, type: popupType.value })
-  }).catch(err => console.log('Error sending NUI callback:', err))
+  if (popupType.value === 'abort') {
+    fetch(`https://${resourceName}/abortConfirmResponse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8'
+      },
+      body: JSON.stringify({ agree })
+    }).catch(err => console.log('Error sending NUI callback:', err))
+  } else {
+    fetch(`https://${resourceName}/crazyDriverResponse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8'
+      },
+      body: JSON.stringify({ agree, type: popupType.value })
+    }).catch(err => console.log('Error sending NUI callback:', err))
+  }
 }
 
 const handleMessage = (event) => {
