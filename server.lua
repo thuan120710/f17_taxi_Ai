@@ -118,12 +118,10 @@ RegisterNetEvent('msk_aitaxi:payTaxiPrice', function(payAmount)
 
     if getPlayerMoney(src) < payAmount then
         TriggerClientEvent('msk_aitaxi:paymentFailed', src)
-        Config.Notification(src, "Bạn không đủ tiền để đi taxi!", "error")
         return
     end
 
     deductPlayerMoney(src, payAmount)
-    Config.Notification(src, Translation[Config.Locale]['paid']:format(comma(payAmount)))
     
     if Config.Society.enable then
         if Config.Framework == 'ESX' then
@@ -152,7 +150,6 @@ RegisterNetEvent('msk_aitaxi:payUpgradePrice', function(payAmount)
     end
 
     deductPlayerMoney(src, payAmount)
-    Config.Notification(src, "Đã thanh toán phụ phí nâng cấp: $" .. comma(payAmount))
     TriggerClientEvent('msk_aitaxi:upgradeSuccess', src)
 end)
 
@@ -177,8 +174,6 @@ RegisterNetEvent('msk_aitaxi:refundTaxiPrice', function(refundAmount)
     elseif Config.Framework == 'Standalone' then
         -- Add your own code here
     end
-
-    Config.Notification(src, "Bạn đã được hoàn lại $" .. comma(refundAmount) .. " cho đoạn đường chưa đi.")
 end)
 
 RegisterNetEvent('msk_aitaxi:checkCallTaxi', function(basePrice)

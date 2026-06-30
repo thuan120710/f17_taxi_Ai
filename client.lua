@@ -56,11 +56,17 @@ end
 
 callTaxi = function()
     if not canCallTaxi then return end
+    if taxi.onRoad or taxi.calling then
+        AdvancedNotification("Bạn đang trong một chuyến đi!", 'Downtown Cab Co.', 'Taxi', 'CHAR_TAXI')
+        return
+    end
+    taxi.calling = true
     TriggerServerEvent('msk_aitaxi:checkCallTaxi', Config.Price.base)
 end
 exports('callTaxi', callTaxi)
 
 RegisterNetEvent('msk_aitaxi:startSpawnTaxi', function()
+    taxi.calling = false
     local npcId, vehId = math.random(#Config.Taxi.pedmodels), math.random(#Config.Taxi.vehicles)
     local npc, veh = Config.Taxi.pedmodels[npcId], Config.Taxi.vehicles[vehId]
     taxi.driverName = npc.name or 'Alex'
@@ -76,6 +82,7 @@ RegisterNetEvent('msk_aitaxi:startSpawnTaxi', function()
     local found, coords, heading = getStartingLocation(playerCoords)
     if not found then 
         AdvancedNotification(Translation[Config.Locale]['not_available'], 'Downtown Cab Co.', 'Taxi', 'CHAR_TAXI')
+        taxi.calling = false
         return 
     end
 
@@ -553,7 +560,7 @@ end)
 RegisterNetEvent('msk_aitaxi:upgradeSuccess', function()
     taxi.speedMultiplier = 1.4
     taxi.speedStatus = "fast"
-    taxi.drivingStyle = 524335
+    taxi.drivingStyle = 786469
 
     SendNUIMessage({
         action = "updateSpeed",
@@ -568,5 +575,6 @@ RegisterNetEvent('msk_aitaxi:upgradeSuccess', function()
 end)
 
 RegisterNetEvent('msk_aitaxi:callTaxiFailed', function(basePrice)
+    taxi.calling = false
     AdvancedNotification(("Bạn không đủ tiền để gọi taxi! (Tối thiểu $%d)"):format(basePrice), 'Downtown Cab Co.', 'Taxi', 'CHAR_TAXI')
 end)
