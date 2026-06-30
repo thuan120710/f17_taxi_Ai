@@ -54,9 +54,36 @@ RegisterNetEvent('msk_aitaxi:payTaxiPrice', function(payAmount)
     end
     payAmount = round(payAmount)
 
+    -- Check if player has enough money
+    local totalMoney = 0
     if Config.Framework == 'ESX' then
         local ESX = GetESX()
         if not ESX then return end
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if xPlayer then
+            local tienkhoaObj = xPlayer.getAccount('tienkhoa')
+            local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
+            local bankMoney = xPlayer.getAccount('bank') and xPlayer.getAccount('bank').money or 0
+            totalMoney = tienkhoaMoney + bankMoney
+        end
+    elseif Config.Framework == 'QBCore' then
+        local Player = QBCore.Functions.GetPlayer(src)
+        if Player then
+            local tienkhoaMoney = Player.Functions.GetMoney('tienkhoa') or 0
+            local bankMoney = Player.Functions.GetMoney('bank') or 0
+            totalMoney = tienkhoaMoney + bankMoney
+        end
+    elseif Config.Framework == 'Standalone' then
+        totalMoney = 999999
+    end
+
+    if totalMoney < payAmount then
+        TriggerClientEvent('msk_aitaxi:paymentFailed', src)
+        return
+    end
+
+    if Config.Framework == 'ESX' then
+        local ESX = GetESX()
         local xPlayer = ESX.GetPlayerFromId(src)
         local tienkhoaObj = xPlayer.getAccount('tienkhoa')
         local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
@@ -109,6 +136,79 @@ RegisterNetEvent('msk_aitaxi:payTaxiPrice', function(payAmount)
     end
 end)
 
+RegisterNetEvent('msk_aitaxi:payUpgradePrice', function(payAmount)
+    local src = source
+    if not payAmount or type(payAmount) ~= 'number' or payAmount <= 0 then
+        return
+    end
+    payAmount = round(payAmount)
+
+    -- Check if player has enough money
+    local totalMoney = 0
+    if Config.Framework == 'ESX' then
+        local ESX = GetESX()
+        if not ESX then return end
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if xPlayer then
+            local tienkhoaObj = xPlayer.getAccount('tienkhoa')
+            local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
+            local bankMoney = xPlayer.getAccount('bank') and xPlayer.getAccount('bank').money or 0
+            totalMoney = tienkhoaMoney + bankMoney
+        end
+    elseif Config.Framework == 'QBCore' then
+        local Player = QBCore.Functions.GetPlayer(src)
+        if Player then
+            local tienkhoaMoney = Player.Functions.GetMoney('tienkhoa') or 0
+            local bankMoney = Player.Functions.GetMoney('bank') or 0
+            totalMoney = tienkhoaMoney + bankMoney
+        end
+    elseif Config.Framework == 'Standalone' then
+        totalMoney = 999999
+    end
+
+    if totalMoney < payAmount then
+        TriggerClientEvent('msk_aitaxi:upgradeFailed', src)
+        return
+    end
+
+    if Config.Framework == 'ESX' then
+        local ESX = GetESX()
+        local xPlayer = ESX.GetPlayerFromId(src)
+        local tienkhoaObj = xPlayer.getAccount('tienkhoa')
+        local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
+
+        if tienkhoaMoney >= payAmount then
+            xPlayer.removeAccountMoney('tienkhoa', payAmount)
+        else
+            if tienkhoaMoney > 0 then
+                xPlayer.removeAccountMoney('tienkhoa', tienkhoaMoney)
+                xPlayer.removeAccountMoney('bank', payAmount - tienkhoaMoney)
+            else
+                xPlayer.removeAccountMoney('bank', payAmount)
+            end
+        end
+    elseif Config.Framework == 'QBCore' then
+        local Player = QBCore.Functions.GetPlayer(src)
+        local tienkhoaMoney = Player.Functions.GetMoney('tienkhoa') or 0
+
+        if tienkhoaMoney >= payAmount then
+            Player.Functions.RemoveMoney('tienkhoa', payAmount)
+        else
+            if tienkhoaMoney > 0 then
+                Player.Functions.RemoveMoney('tienkhoa', tienkhoaMoney)
+                Player.Functions.RemoveMoney('bank', payAmount - tienkhoaMoney)
+            else
+                Player.Functions.RemoveMoney('bank', payAmount)
+            end
+        end
+    elseif Config.Framework == 'Standalone' then
+        -- Add your own code here
+    end
+
+    Config.Notification(src, "Đã thanh toán phụ phí nâng cấp: $" .. comma(payAmount))
+    TriggerClientEvent('msk_aitaxi:upgradeSuccess', src)
+end)
+
 
 RegisterNetEvent('msk_aitaxi:refundTaxiPrice', function(refundAmount)
     local src = source
@@ -133,4 +233,45 @@ RegisterNetEvent('msk_aitaxi:refundTaxiPrice', function(refundAmount)
     end
 
     Config.Notification(src, "Bạn đã được hoàn lại $" .. comma(refundAmount) .. " cho đoạn đường chưa đi.")
+end)
+
+RegisterNetEvent('msk_aitaxi:checkCallTaxi', function(basePrice)
+    local src = source
+    if not basePrice or type(basePrice) ~= 'number' or basePrice <= 0 then
+        return
+    end
+    basePrice = round(basePrice)
+
+    local totalMoney = 0
+    if Config.Framework == 'ESX' then
+        local ESX = GetESX()
+        if not ESX then return end
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if xPlayer then
+            local tienkhoaObj = xPlayer.getAccount('tienkhoa')
+            local tienkhoaMoney = tienkhoaObj and tienkhoaObj.money or 0
+            local bankMoney = xPlayer.getAccount('bank') and xPlayer.getAccount('bank').money or 0
+            totalMoney = tienkhoaMoney + bankMoney
+        end
+    elseif Config.Framework == 'QBCore' then
+        local Player = QBCore.Functions.GetPlayer(src)
+        if Player then
+            local tienkhoaMoney = Player.Functions.GetMoney('tienkhoa') or 0
+            local bankMoney = Player.Functions.GetMoney('bank') or 0
+            totalMoney = tienkhoaMoney + bankMoney
+        end
+    elseif Config.Framework == 'Standalone' then
+        totalMoney = 999999
+    end
+
+    if totalMoney < basePrice then
+        if Config.Framework == 'QBCore' then
+            TriggerClientEvent('QBCore:Notify', src, "Bạn không đủ tiền để gọi taxi! (Tối thiểu $" .. basePrice .. ")", "error", 5000)
+        else
+            TriggerClientEvent('msk_aitaxi:callTaxiFailed', src, basePrice)
+        end
+        return
+    end
+
+    TriggerClientEvent('msk_aitaxi:startSpawnTaxi', src)
 end)

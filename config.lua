@@ -3,19 +3,6 @@ Config = {}
 Config.Locale = 'de'
 Config.VersionChecker = false
 ----------------------------------------------------------------
--- !!! This function is clientside AND serverside !!!
-Config.Notification = function(source, message, typ)
-    if IsDuplicityVersion() then -- serverside
-        TriggerClientEvent('no:Notify', source, message, typ or 'primary', 5000)
-    else -- clientside
-        if no and no.Notify then
-            no:Notify(message, typ or 'primary', 5000)
-        else
-            TriggerEvent('no:Notify', message, typ or 'primary', 5000)
-        end
-    end
-end
-----------------------------------------------------------------
 -- If set to 'Standalone' then you have to add your own functions in server.lua
 Config.Framework = 'QBCore' -- Set to 'ESX', 'QBCore' or 'Standalone'
 ----------------------------------------------------------------

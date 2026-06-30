@@ -49,6 +49,11 @@ getVehNodeType = function(coords)
 end
 callTaxi = function()
     if not canCallTaxi then return end
+    TriggerServerEvent('msk_aitaxi:checkCallTaxi', Config.Price.base)
+end
+exports('callTaxi', callTaxi)
+
+RegisterNetEvent('msk_aitaxi:startSpawnTaxi', function()
     local npcId, vehId = math.random(#Config.Taxi.pedmodels), math.random(#Config.Taxi.vehicles)
     local npc, veh = Config.Taxi.pedmodels[npcId], Config.Taxi.vehicles[vehId]
     taxi.driverName = npc.name or 'Alex'
@@ -69,8 +74,7 @@ callTaxi = function()
     end
 
     startDriveToPlayer(playerCoords)
-end
-exports('callTaxi', callTaxi)
+end)
 
 spawnVehicle = function(playerCoords, driverHash, vehHash)
     local found, coords, heading = getStartingLocation(playerCoords)
@@ -227,11 +231,17 @@ startDriveToCoords = function(waypoint)
     checkWaypoint()
 end
 
-abortTaxiDrive = function(keyPressed)
+abortTaxiDrive = function(keyPressed, isPaymentFailure)
     if not taxi.onRoad then return end
     if taxi.canceled then return end
     if taxi.finished then return end
     taxi.canceled = true
+
+    if isPaymentFailure then
+        AdvancedNotification(Translation[Config.Locale]['insufficient_funds'], 'Downtown Cab Co.', taxi.driverName or 'Taxi', 'CHAR_TAXI')
+        leaveTarget()
+        return
+    end
 
     if not taxi.inDriveMode then
         AdvancedNotification(Translation[Config.Locale]['abort'], 'Downtown Cab Co.', taxi.driverName, 'CHAR_TAXI')
@@ -575,9 +585,7 @@ CreateThread(function()
                 end
 
                 -- B. Flip check (3 seconds)
-                local roll = math.abs(GetEntityRoll(task.vehicle))
-                local pitch = math.abs(GetEntityPitch(task.vehicle))
-                if not IsVehicleOnAllWheels(task.vehicle) or roll > 70.0 or pitch > 70.0 then
+                if not IsVehicleOnAllWheels(task.vehicle) then
                     if flipStartTime == 0 then
                         flipStartTime = gameTimer
                     elseif gameTimer - flipStartTime > 3000 then -- 3.0s
@@ -722,23 +730,7 @@ RegisterNUICallback('crazyDriverResponse', function(data, cb)
     if data.type == 'upgrade' then
         if data.agree then
             local additionalPrice = math.ceil(taxi.upfrontPrice * 0.5)
-            TriggerServerEvent('msk_aitaxi:payTaxiPrice', additionalPrice)
-            taxi.speedMultiplier = 1.4
-            taxi.speedStatus = "fast"
-            taxi.drivingStyle = 786479 -- Fast driving style with overtaking/swerving
-
-            SendNUIMessage({
-                action = "updateSpeed",
-                speed = taxi.speedStatus
-            })
-
-            -- Update speed task immediately
-            local vehicleCoords = GetEntityCoords(task.vehicle)
-            local baseSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-            local currentSpeed = baseSpeed * taxi.speedMultiplier
-            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
-            SetPedKeepTask(task.npc, true)
-            Config.Notification(nil, "Đã kích hoạt chế độ quái xế lạng lách!", "success")
+            TriggerServerEvent('msk_aitaxi:payUpgradePrice', additionalPrice)
         else
             Config.Notification(nil, "Bạn đã từ chối chế độ quái xế.", "primary")
         end
@@ -766,4 +758,36 @@ RegisterNUICallback('crazyDriverResponse', function(data, cb)
     end
     
     cb('ok')
+end)
+
+RegisterNetEvent('msk_aitaxi:paymentFailed', function()
+    taxi.paidUpfront = false -- Block refund since payment failed
+    abortTaxiDrive(false, true)
+end)
+
+RegisterNetEvent('msk_aitaxi:upgradeFailed', function()
+    AdvancedNotification("Bạn không đủ tiền để nâng cấp lên chế độ quái xế!", 'Downtown Cab Co.', taxi.driverName or 'Taxi', 'CHAR_TAXI')
+end)
+
+RegisterNetEvent('msk_aitaxi:upgradeSuccess', function()
+    taxi.speedMultiplier = 1.4
+    taxi.speedStatus = "fast"
+    taxi.drivingStyle = 524335 -- Fast driving style with overtaking/swerving, bám sát đường chữ S
+
+    SendNUIMessage({
+        action = "updateSpeed",
+        speed = taxi.speedStatus
+    })
+
+    -- Update speed task immediately
+    local vehicleCoords = GetEntityCoords(task.vehicle)
+    local baseSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+    local currentSpeed = baseSpeed * taxi.speedMultiplier
+    TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
+    SetPedKeepTask(task.npc, true)
+    AdvancedNotification("Đã kích hoạt chế độ quái xế lạng lách!", 'Downtown Cab Co.', taxi.driverName or 'Taxi', 'CHAR_TAXI')
+end)
+
+RegisterNetEvent('msk_aitaxi:callTaxiFailed', function(basePrice)
+    AdvancedNotification(("Bạn không đủ tiền để gọi taxi! (Tối thiểu $%d)"):format(basePrice), 'Downtown Cab Co.', 'Taxi', 'CHAR_TAXI')
 end)

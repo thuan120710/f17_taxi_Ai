@@ -8,6 +8,7 @@ Translation = {
         ['welcome'] = 'Xin chào, tôi là %s. Bạn muốn đi đâu?',
         ['end'] = 'Chúng ta đã đến điểm hẹn yêu cầu.',
         ['abort'] = 'Đã hủy chuyến taxi',
+        ['insufficient_funds'] = 'Bạn không đủ tiền để thực hiện chuyến đi này! Hủy chuyến.',
     },
     ['en'] = {
         ['input'] = 'Press ~r~X~s~ to abort the taxi drive',
@@ -18,5 +19,6 @@ Translation = {
         ['welcome'] = 'Hey, my Name is %s. Where do you want to go?',
         ['end'] = 'We have reached your desired address',
         ['abort'] = 'Taxi Driver canceled',
+        ['insufficient_funds'] = 'You do not have enough money to make this trip! Canceled.',
     },
 }
