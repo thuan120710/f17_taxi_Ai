@@ -52,7 +52,7 @@ Config.SpeedZones = {
 
 Config.Price = {
     base = 20, -- Price for driving to your position
-    tick = 0.15, -- Price per tick
+    tick = 1, -- Price per tick
     tickTime = 50, 
 
     color = {r = 255, g = 255, b = 255, a = 255},

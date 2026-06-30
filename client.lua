@@ -485,28 +485,21 @@ CreateThread(function()
                     -- Page Up (Control 10)
                     if IsControlJustPressed(0, 10) then
                         if taxi.speedStatus == "fast" then
-                            taxi.speedMultiplier = 1.0
-                            taxi.speedStatus = "normal"
-                            taxi.drivingStyle = Config.DrivingStyle
-                            Config.Notification(nil, "Đã bảo tài xế chạy tốc độ bình thường.", "primary")
+                            -- Show downgrade popup
+                            SendNUIMessage({
+                                action = "showPopup",
+                                type = "downgrade"
+                            })
+                            SetNuiFocus(true, true)
                         else
-                            taxi.speedMultiplier = 1.4
-                            taxi.speedStatus = "fast"
-                            taxi.drivingStyle = 786479 -- Fast driving style (runs red lights, follows GPS road, works on all roads including mountains)
-                            Config.Notification(nil, "Đã bảo tài xế chạy nhanh lên!", "success")
+                            -- Show upgrade popup
+                            SendNUIMessage({
+                                action = "showPopup",
+                                type = "upgrade",
+                                price = taxi.upfrontPrice
+                            })
+                            SetNuiFocus(true, true)
                         end
-
-                        SendNUIMessage({
-                            action = "updateSpeed",
-                            speed = taxi.speedStatus
-                        })
-
-                        -- Update speed task immediately
-                        local vehicleCoords = GetEntityCoords(task.vehicle)
-                        local baseSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
-                        local currentSpeed = baseSpeed * taxi.speedMultiplier
-                        TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
-                        SetPedKeepTask(task.npc, true)
                     end
                 end
             elseif taxi.playerWasInside then
@@ -722,3 +715,55 @@ DrawGenericText = function(text)
 	AddTextComponentSubstringPlayerName(text)
 	EndTextCommandDisplayText(Config.Price.position.width, Config.Price.position.height)
 end
+
+RegisterNUICallback('crazyDriverResponse', function(data, cb)
+    SetNuiFocus(false, false)
+    
+    if data.type == 'upgrade' then
+        if data.agree then
+            local additionalPrice = math.ceil(taxi.upfrontPrice * 0.5)
+            TriggerServerEvent('msk_aitaxi:payTaxiPrice', additionalPrice)
+            taxi.speedMultiplier = 1.4
+            taxi.speedStatus = "fast"
+            taxi.drivingStyle = 786479 -- Fast driving style with overtaking/swerving
+
+            SendNUIMessage({
+                action = "updateSpeed",
+                speed = taxi.speedStatus
+            })
+
+            -- Update speed task immediately
+            local vehicleCoords = GetEntityCoords(task.vehicle)
+            local baseSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+            local currentSpeed = baseSpeed * taxi.speedMultiplier
+            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
+            SetPedKeepTask(task.npc, true)
+            Config.Notification(nil, "Đã kích hoạt chế độ quái xế lạng lách!", "success")
+        else
+            Config.Notification(nil, "Bạn đã từ chối chế độ quái xế.", "primary")
+        end
+    elseif data.type == 'downgrade' then
+        if data.agree then
+            taxi.speedMultiplier = 1.0
+            taxi.speedStatus = "normal"
+            taxi.drivingStyle = Config.DrivingStyle
+
+            SendNUIMessage({
+                action = "updateSpeed",
+                speed = taxi.speedStatus
+            })
+
+            -- Update speed task immediately
+            local vehicleCoords = GetEntityCoords(task.vehicle)
+            local baseSpeed = (Config.SpeedZones[getVehNodeType(vehicleCoords)] or Config.SpeedZones[2]) / Config.SpeedType
+            local currentSpeed = baseSpeed * taxi.speedMultiplier
+            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
+            SetPedKeepTask(task.npc, true)
+            Config.Notification(nil, "Đã trở về chế độ lái xe bình thường (Không hoàn lại phụ phí).", "primary")
+        else
+            Config.Notification(nil, "Đã hủy yêu cầu hạ tốc độ, tiếp tục chế độ quái xế.", "success")
+        end
+    end
+    
+    cb('ok')
+end)
