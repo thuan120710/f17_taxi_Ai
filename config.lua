@@ -39,7 +39,7 @@ Config.SpeedZones = {
 
 Config.Price = {
     base = 20, -- Price for driving to your position
-    tick = 1, -- Price per tick
+    tick = 0.5, -- Price per tick
     tickTime = 50, 
 
     color = {r = 255, g = 255, b = 255, a = 255},
@@ -55,7 +55,7 @@ Config.Taxi = {
     },
     pedmodels = {
         -- You can set different models
-        {name = 'Michael Reynold', model = 'ig_claypain', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
-        {name = 'John Smith', model = 'ig_claypain', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
+        {name = 'thuanle', model = 'ig_claypain', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
+        {name = 'thuanvip', model = 'ig_claypain', voice = 'A_M_M_EASTSA_02_LATINO_FULL_01'},
     },
 }

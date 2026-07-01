@@ -105,6 +105,7 @@ RegisterNetEvent('msk_aitaxi:startSpawnTaxi', function()
     SetAmbientVoiceName(task.npc, taxi.driverVoice)
     SetBlockingOfNonTemporaryEvents(task.npc, true)
     SetDriverAbility(task.npc, 1.0)
+    SetDriverAggressiveness(task.npc, 0.0)
     SetEntityAsMissionEntity(task.npc, true, true)
 
     task.blip = AddBlipForEntity(task.vehicle)
@@ -383,11 +384,35 @@ CreateThread(function()
                         taxi.finished = true
                         CreateThread(checkWaypoint)
                     else
+                        -- Ped/Player detection in front of the vehicle (Only in quái xế/fast mode)
+                        local slowingForPed = false
+                        if taxi.speedStatus == "fast" then
+                            local peds = GetGamePool('CPed')
+                            local forwardVector = GetEntityForwardVector(task.vehicle)
+                            for _, ped in ipairs(peds) do
+                                if ped ~= task.npc and ped ~= playerPed and not IsPedInAnyVehicle(ped) then
+                                    local pedCoords = GetEntityCoords(ped)
+                                    local toPed = pedCoords - vehicleCoords
+                                    local dist = #toPed
+                                    if dist < 35.0 then
+                                        local toPedNormalized = toPed / dist
+                                        local dot = toPedNormalized.x * forwardVector.x + toPedNormalized.y * forwardVector.y + toPedNormalized.z * forwardVector.z
+                                        if dot > 0.8 then -- ~36 degree cone in front of the car
+                                            slowingForPed = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
                         local targetSpeed = getSpeedForCoords(vehicleCoords, taxi.speedMultiplier, distance <= 20.0)
+                        if slowingForPed then
+                            targetSpeed = targetSpeed * 0.35 -- Reduce speed to 35% (e.g. 210 kmh -> 73 kmh) to allow the AI to safely steer/swerve around peds
+                        end
                         if math.abs(currentSpeed - targetSpeed) > 0.1 then
                             currentSpeed = targetSpeed
-                            TaskVehicleDriveToCoordLongrange(task.npc, task.vehicle, task.toCoords.x, task.toCoords.y, task.toCoords.z, currentSpeed, taxi.drivingStyle, 5.0)
-                            SetPedKeepTask(task.npc, true)
+                            SetDriveTaskMaxCruiseSpeed(task.npc, currentSpeed)
                         end
                     end
                 else
@@ -543,6 +568,9 @@ RegisterNUICallback('crazyDriverResponse', function(data, cb)
             taxi.speedMultiplier = 1.0
             taxi.speedStatus = "normal"
             taxi.drivingStyle = Config.DrivingStyle
+            if DoesEntityExist(task.npc) then
+                SetDriverAggressiveness(task.npc, 0.0)
+            end
 
             SendNUIMessage({
                 action = "updateSpeed",
@@ -584,7 +612,10 @@ end)
 RegisterNetEvent('msk_aitaxi:upgradeSuccess', function()
     taxi.speedMultiplier = 1.4
     taxi.speedStatus = "fast"
-    taxi.drivingStyle = 786469
+    taxi.drivingStyle = 787006 -- 787006 (Reckless, Shortest path, wrong way, avoid objects/peds/stationary cars, stop for peds, does NOT stop for cars)
+    if DoesEntityExist(task.npc) then
+        SetDriverAggressiveness(task.npc, 1.0)
+    end
 
     SendNUIMessage({
         action = "updateSpeed",
